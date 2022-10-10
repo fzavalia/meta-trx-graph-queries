@@ -1,10 +1,9 @@
 const fetch = require("node-fetch");
 const { getRpc, getMetaTrxQueryUrl } = require("../config");
 
-async function main(seconds) {
+async function main(seconds, options = {}) {
   const timestampGT = (await getLatestBlockTimestamp()) - seconds;
-
-  const metaTransactions = await getMetaTransactions([], timestampGT);
+  const metaTransactions = await getMetaTransactions([], timestampGT, options);
 
   console.log("Amount of Meta Transactions: " + metaTransactions.length);
 
@@ -25,11 +24,21 @@ async function getLatestBlockTimestamp() {
   return Number((await res.json()).result.timestamp);
 }
 
-async function getMetaTransactions(metaTransactions, timestampGT, timestampLT) {
-  let whereTimestampLT = "";
+async function getMetaTransactions(metaTransactions, timestampGT, options = {}) {
+  let whereOptionals = "";
+
+  const { timestampLT, contractNameNotIn, contractNameIn } = options;
 
   if (timestampLT) {
-    whereTimestampLT = `, timestamp_lt: ${timestampLT}`;
+    whereOptionals += `, timestamp_lt: ${timestampLT}`;
+  }
+
+  if (contractNameNotIn) {
+    whereOptionals += `, contractName_not_in: [${contractNameNotIn.join(", ")}]`;
+  }
+
+  if (contractNameIn) {
+    whereOptionals += `, contractName_in: [${contractNameIn.join(", ")}]`;
   }
 
   const result = await fetch(getMetaTrxQueryUrl(), {
@@ -37,7 +46,7 @@ async function getMetaTransactions(metaTransactions, timestampGT, timestampLT) {
     body: JSON.stringify({
       query: `
         {
-            metaTransactions(first: 1000, orderBy: timestamp, orderDirection: desc, where: { timestamp_gt: ${timestampGT}${whereTimestampLT} }) {
+            metaTransactions(first: 1000, orderBy: timestamp, orderDirection: desc, where: { timestamp_gt: ${timestampGT}${whereOptionals} }) {
                 id
                 userAddress
                 timestamp
@@ -56,11 +65,10 @@ async function getMetaTransactions(metaTransactions, timestampGT, timestampLT) {
   const newMetaTransactions = [...metaTransactions, ...resultMetaTransactions];
 
   if (resultMetaTransactions.length === 1000) {
-    return getMetaTransactions(
-      newMetaTransactions,
-      timestampGT,
-      resultMetaTransactions[resultMetaTransactions.length - 1].timestamp
-    );
+    return getMetaTransactions(newMetaTransactions, timestampGT, {
+      ...options,
+      timestampLT: resultMetaTransactions[resultMetaTransactions.length - 1].timestamp,
+    });
   }
 
   return newMetaTransactions;

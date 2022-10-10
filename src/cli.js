@@ -1,18 +1,35 @@
 const queryUniqueAddresses = require("./queries/queryUniqueAddresses");
+const yargs = require("yargs")(process.argv.slice(2));
 
-require("yargs")
-  .scriptName("meta-trx-queries")
-  .usage("$0 <cmd> [args]")
+yargs
+  .usage("Usage: $0 <command> [options]")
+  .command({
+    command: "*",
+    handler: () => {
+      yargs.showHelp();
+    },
+  })
   .command(
-    "query-unique-addresses [period]",
-    "Get the amount of unique addresses that sent meta transactions over the last period of time",
+    "unique-address-count <period>",
+    "Get the amount of Meta Transactions executed by different addresses over the last period of time",
     (yargs) => {
       yargs.positional("period", {
-        type: "string",
-        describe: "The period of time to query. Can be 'day', 'week', 'month' or 'year'",
+        choices: ["day", "week", "month", "year"],
+        description: "Period of time to query",
+      });
+      yargs.option("name", {
+        type: "array",
+        description: "Contract names to filter by",
+        alias: "n",
+      });
+      yargs.option("not-name", {
+        type: "array",
+        description: "Contract names not to filter by",
       });
     },
-    ({ period }) => {
+    (argv) => {
+      const period = argv.period;
+
       let seconds;
 
       switch (period) {
@@ -23,17 +40,14 @@ require("yargs")
           seconds = 604800;
           break;
         case "month":
-          seconds = 2629800;
-          break;
+          seconds = 2592000;
         case "year":
-          seconds = 31557600;
-          break;
-        default:
-          console.log("Please specify a valid period of time (day, week, month or year)");
-          return;
+          seconds = 31536000;
       }
 
-      queryUniqueAddresses(seconds);
+      let names = argv.name;
+      let notNames = argv.notName;
+
+      queryUniqueAddresses(seconds, { contractNameNotIn: notNames, contractNameIn: names });
     }
-  )
-  .help().argv;
+  ).argv;
