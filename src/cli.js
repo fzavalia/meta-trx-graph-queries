@@ -14,7 +14,7 @@ yargs
     "Get the amount of Meta Transactions executed by different addresses over the last period of time",
     (yargs) => {
       yargs.positional("period", {
-        choices: ["day", "week", "month", "year"],
+        choices: ["day", "week", "month"],
         description: "Period of time to query",
       });
       yargs.option("name", {
@@ -40,9 +40,7 @@ yargs
           seconds = 604800;
           break;
         case "month":
-          seconds = 2592000;
-        case "year":
-          seconds = 31536000;
+          seconds = 2629800;
       }
 
       let names = argv.name;
